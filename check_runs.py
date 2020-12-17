@@ -13,9 +13,17 @@ for f in folders:
     print('%-50s'%f, end='  ')
     snaps = glob.glob1(f+'/output/', 'snap*')
     ns = len(snaps)-1
-    print('%4d'%(ns), end='  ')
-
-    t_final = os.path.getmtime(f+'/output/'+'snapshot_%03d.hdf5'%ns)
+    #print('%4d'%(ns), end='  ')
+    
+    t_final = 0.
+    i_final = 0
+    for i in range(ns+1):
+        temp =  os.path.getmtime(f+'/output/'+'snapshot_%03d.hdf5'%i)
+        if temp > t_final:
+            t_final = temp
+            i_final = i
+    print('%4d'%(i_final), end='  ')
+    #t_final = os.path.getmtime(f+'/output/'+'snapshot_%03d.hdf5'%ns)
     t_start = os.path.getmtime(f+'/output/'+'snapshot_000.hdf5')
     print(time.ctime(t_final), end='  ')
     t = t_final-t_start

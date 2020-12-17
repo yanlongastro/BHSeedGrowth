@@ -57,17 +57,24 @@ while 1:
                 t_slurm = os.path.getctime(folder+slurm)
                 job_id = slurm[-10:-4]
         #print(job_id)
-
-        n_snapshot = len(glob.glob1(folder+'output/', 'snap*'))-1
+        
+        t_latest = 0
+        for i in range(len(glob.glob1(folder+'output/', 'snap*'))):
+            temp = os.path.getctime(folder+'output/snapshot_%03d.hdf5'%i)
+            if temp > t_latest:
+                n_snapshot = i
+                t_latest = temp
         #print(n_snapshot)
-        if n_snapshot < 100:
-            finished = False
+        #if n_snapshot < 100:
+        #    finished = False
 
         if R==20:
             n_snap_tot = 500
         else:
             n_snap_tot = 100
 
+        if n_snapshot < n_snap_tot:
+            finished = False
         print(folder)
 
         job_name = ga.set_job_name(folder)
