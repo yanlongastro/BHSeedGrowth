@@ -1,0 +1,44 @@
+%% parameters depend on runs %%
+InitCondFile    ../BH_M1e5_R5_S0_T1_B0.01_Res128_n2_sol0.5_42
+TimeBetSnapshot                 3e-5        % time between snaps
+TimeMax                         0.003       % end time in code units
+Softening_Type0                 1e-6        % small but not too small-sets cutoff
+Softening_Type4                 1e-4        % stars: similar to softening_5
+Softening_Type5                 1e-4        % bh: sets accretion radius
+InitMetallicity                 1           % cloud is solar-metallicity
+%
+%% parameters fixed between runs but depend on machine/resolution %%
+MaxMemSize                      1600        % make sure this fits in memory per MPI
+PartAllocFactor                 3.0         % ~a few is fine
+BufferSize                      100         % buffer allocation
+TreeDomainUpdateFrequency       0.05        % may require some tuning to problem
+%
+%% parameters that don't need to be changed between runs %%
+SeedBlackHoleMass               1e-10       % small number, particle mass should be larger
+BoxSize                         0           % meaningless: non-periodic
+ICFormat                        3           % hdf5
+BlackHoleAccretionFactor        1           % BH accretion is not altered
+BlackHoleEddingtonFactor        1e+20       % no eddington limit
+BlackHoleRadiativeEfficiency    0.1         % 10% rad eff (not used, no feedback)
+BlackHoleFeedbackFactor         0           % no feedback
+OutputDir                       output      % directory for snapshots
+OutputListOn                    0           % no specific file for output times
+TimeOfFirstSnapshot             0           % first snap at t=0
+TimeBegin                       0           % always begin at t=0
+ComovingIntegrationOn           0           % not a cosmological sim
+MaxSizeTimestep                 0.01        % some large number compared to others here
+UnitLength_in_cm                3.08568e+21 % unit definition
+UnitMass_in_g                   1.989e+43   % unit definition
+UnitVelocity_in_cm_per_s        100000      % unit definition
+UnitMagneticField_in_gauss      1           % unit definition
+InitGasTemp                     1e4         % initialize as warm, allow to cool
+MinGasTemp                      1           % just to avoid some potential pathologies
+DesNumNgb                       32          % neighbor for cubic spline
+Softening_Type1                 0           % not used here
+Softening_Type2                 0           % not used here
+Softening_Type3                 0           % not used here
+BlackHoleMaxAccretionRadius     0.001       % this is a parsec - huge distance already
+CritPhysDensity                 1000.       % not too high, given our SF thresholds
+SfEffPerFreeFall                1           % sfr per ff is unity by our definitions
+BlackHoleNgbFactor              3           % multiplier for number of BH neighbors
+SeedAlphaDiskMass               0           % no initial mass here
