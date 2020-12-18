@@ -181,20 +181,49 @@ class snapshot:
             inds = np.array([inds])
         return inds[dist!=np.inf]
         
+
+def pass_row_header(fname):
+    """
+    delete 'BH=' in every line
+    """
+    with open(fname, 'r') as fin:
+        if 'BH=' in fin.readline():
+            for line in fin:
+                try:
+                    yield line[3:]
+                except IndexError:
+                    continue
+        else:
+            for line in fin:
+                try:
+                    yield line
+                except IndexError:
+                    continue
+
         
         
 class blackhole_details:
-    def __init__(self, outputdir, filename='blackhole_details', tasks=72):
+    def __init__(self, outputdir, filename='blackhole_details', tasks=72, io_reduced_mode=False):
+        self.io_reduced_mode = io_reduced_mode
         df = None
         for task in range(tasks):
             bhdetail = outputdir+'blackhole_details/'+filename+'_%d.txt'%task
-            data = np.loadtxt(bhdetail)
+            if io_reduced_mode:
+                data = np.loadtxt(pass_row_header(bhdetail))
+                sort_key = 1
+            else:
+                data = np.loadtxt(bhdetail)
+                sort_key = 0
             pdf = pd.DataFrame(data=data)
             df = pd.concat([df, pdf])
             print(task, end=' ')
-        df = df.sort_values(by=[0])
+        df = df.sort_values(by=[sort_key])
         self.df = df
     def get_detail(self, bhpid, column):
-        mask = self.df[1] == bhpid
+        if self.io_reduced_mode:
+            mask_key = 0
+        else:
+            mask_key = 1
+        mask = self.df[mask_key] == bhpid
         res = self.df[mask][column]
         return res.values

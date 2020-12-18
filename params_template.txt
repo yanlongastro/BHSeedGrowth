@@ -12,6 +12,7 @@ MaxMemSize                      1600        % make sure this fits in memory per 
 PartAllocFactor                 3.0         % ~a few is fine
 BufferSize                      100         % buffer allocation
 TreeDomainUpdateFrequency       0.05        % may require some tuning to problem
+CpuTimeBetRestartFile           1200        % in seconds
 %
 %% parameters that don't need to be changed between runs %%
 SeedBlackHoleMass               1e-10       % small number, particle mass should be larger
