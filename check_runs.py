@@ -4,6 +4,7 @@ import subprocess
 import os
 
 folders = glob.glob1('./', '*_42')
+folders = sorted(folders)
 for f in folders:
     #print(f)
     gizmo = f+'/gizmo.out'
@@ -14,7 +15,9 @@ for f in folders:
     snaps = glob.glob1(f+'/output/', 'snap*')
     ns = len(snaps)-1
     #print('%4d'%(ns), end='  ')
-    
+    if ns <=0:
+        print('\n')
+        continue
     t_final = 0.
     i_final = 0
     for i in range(ns+1):

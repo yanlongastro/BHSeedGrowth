@@ -10,6 +10,8 @@ import re
 import h5py
 from scipy import spatial
 import pandas as pd
+import glob
+import os
 
 
 tunit = 206265*1000*1.5e8/(86400*365)
@@ -165,6 +167,13 @@ class snapshot:
     def bh(self, attr):
         return self.f['PartType5'][attr][()]
     
+    def bh_sorted(self, attr):
+        ids = self.f['PartType5']['ParticleIDs'][()]
+        target = self.f['PartType5'][attr][()]
+        a = np.transpose([ids, target])
+        a = a[a[:,0].argsort()]
+        return a[:,1]
+    
     def single_bh(self, bhid, attr):
         bhpid_base = min(self.f['PartType5']['ParticleIDs'][()])-1
         bhpid = bhpid_base + bhid
@@ -180,6 +189,21 @@ class snapshot:
             dist = np.array([dist])
             inds = np.array([inds])
         return inds[dist!=np.inf]
+    
+    
+    
+def get_num_snaps(path, snap='snapshot_*.hdf5'):
+    fns = glob.glob1(path, snap)
+    imax = -1
+    tmax = 0.
+    for fn in fns:
+        t = os.path.getmtime(os.path.join(path, fn))
+        if t>tmax:
+            imax += 1
+            tmax = t
+            #print(fn)
+            
+    return imax
         
 
 def pass_row_header(fname):
