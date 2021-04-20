@@ -39,16 +39,25 @@ fn = NAME % I
 vals = ga.par_path(os.getcwd())
 M = vals[0]
 R = vals[1]
+Res = int(vals[5])
 
 rc, G, Mc = R/1e3, 4.3e4, M/1e10
 tff = np.pi/2 *np.sqrt(rc**3/G/Mc/2)
 tunit = 206265*1000*1.5e8/(86400*365)
 lim = R/1e3*2
 ext = R/1e3*1.5
-Res = 64
+# Res = 64
 nbase = Res**3
 ids_toshow = np.arange(0, nbase-1, nbase/64**3, dtype=int) 
 periodic = False
+
+selected_BH = True
+if selected_BH:
+    sim = ga.simulation('./output/')
+    interesting_BHs = sim.find_interesting_BHs()
+    #print(interesting_BHs)
+
+sp = ga.snapshot(fn)
 with h5py.File(fn, 'r') as f:
     # print(i, end=' ')
     xyz=f['PartType0']['Coordinates'][()]
@@ -79,11 +88,19 @@ with h5py.File(fn, 'r') as f:
                     )
     
     if 'PartType5' in list(f.keys()):
-        xyz=f['PartType5']['Coordinates'][()]
+        if selected_BH:
+            xyz = []
+            pids = interesting_BHs + nbase
+            for idd in interesting_BHs:
+                xyz.append(sp.single_bh(idd, 'Coordinates'))
+            xyz = np.array(xyz)
+        else:
+            xyz=f['PartType5']['Coordinates'][()]
+            pids = f['PartType5']['ParticleIDs'][()]
         if periodic:
             xyz[:,0] -= R/1e3
             xyz[:,1] -= R/1e3
-        ids = f['PartType5']['ParticleIDs'][()] - nbase
+        ids = pids - nbase
         bh_sink = f['PartType5']['SinkRadius'][()][0]/2.8
         ax.scatter(xyz[:,0], xyz[:,1], s=5, c=xyz[:,2]/lim, alpha=0.95, cmap='bone_r', vmax=1, vmin=-1)
 

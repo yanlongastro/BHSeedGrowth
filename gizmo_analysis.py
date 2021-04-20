@@ -27,6 +27,9 @@ def t_ff(M, R):
     """
     return np.pi/2 *np.sqrt(R**3/G/M/2)
 
+def v_esc(M, R):
+    return np.sqrt(G*M/R)
+
 
 def show_info(fin):
     for k in list(fin.keys()):
@@ -78,12 +81,13 @@ def set_bh_softening(M, R, Res, debug=False):
     if debug:
         print('dr_cs =', dr_cs)
     dr = min(dr_star, dr_cs)
-    if dr == dr_star:
-        print('Used star softenning length.')
-    if dr == dr_cs:
-        print('Used sound speed limit.')
-    if dr == dr_v:
-        print('Used velocity limit.')
+    if debug:
+        if dr == dr_star:
+            print('Used star softenning length.')
+        if dr == dr_cs:
+            print('Used sound speed limit.')
+        if dr == dr_v:
+            print('Used velocity limit.')
     #print(dr)
     return dr
 
@@ -131,10 +135,10 @@ def set_job_name(ic, skip=0):
     job_name += '%d'%(np.log(Res)/np.log(2))
     return job_name
  
-def set_folder_name(M, R, Res):
+def set_folder_name(M, R, Res, pre='BH_'):
     power = int(np.log10(M))
     coeff = int(M/10**power)
-    folder = 'BH_M%de%d_R%d_S0_T1_B0.01_Res%d_n2_sol0.5_42/'%(coeff, power, R, Res)
+    folder = '%sM%de%d_R%d_S0_T1_B0.01_Res%d_n2_sol0.5_42/'%(pre, coeff, power, R, Res)
     return folder
 
 class snapshot:
@@ -158,11 +162,14 @@ class snapshot:
         else:
             return res[partial]
     
-    def star(self, attr):
+    def star(self, attr, partial=[]):
         if 'PartType4' in list(self.f.keys()):
-            return self.f['PartType4'][attr][()]
+            if partial == []:
+                return self.f['PartType4'][attr][()]
+            else:
+                return self.f['PartType4'][attr][()][partial]
         else:
-            return None
+            return np.array([])
         
     def bh(self, attr):
         return self.f['PartType5'][attr][()]
@@ -170,9 +177,8 @@ class snapshot:
     def bh_sorted(self, attr):
         ids = self.f['PartType5']['ParticleIDs'][()]
         target = self.f['PartType5'][attr][()]
-        a = np.transpose([ids, target])
-        a = a[a[:,0].argsort()]
-        return a[:,1]
+        a = target[ids.argsort()]
+        return a
     
     def single_bh(self, bhid, attr):
         bhpid_base = min(self.f['PartType5']['ParticleIDs'][()])-1
@@ -180,11 +186,21 @@ class snapshot:
         bhpid = np.where(self.f['PartType5']['ParticleIDs'][()]==bhpid)[0][0]
         return self.f['PartType5'][attr][()][bhpid]
             
-    def find_gas_near_bh(self, bhid, kneighbor=96, drmax=10086):
+    def find_gas_near_bh(self, bhid, kneighbor=96, drmax=10086, p_norm=2):
         pos_bh = self.single_bh(bhid, 'Coordinates')
         pos_gas = self.gas('Coordinates')
         kdtree = spatial.cKDTree(pos_gas)
-        dist, inds = kdtree.query(pos_bh, k=kneighbor, eps=0, distance_upper_bound=drmax)
+        dist, inds = kdtree.query(pos_bh, k=kneighbor, eps=0, distance_upper_bound=drmax, p=p_norm)
+        if kneighbor==1:
+            dist = np.array([dist])
+            inds = np.array([inds])
+        return inds[dist!=np.inf]
+    
+    def find_star_near_bh(self, bhid, kneighbor=96, drmax=10086, p_norm=2):
+        pos_bh = self.single_bh(bhid, 'Coordinates')
+        pos_gas = self.star('Coordinates')
+        kdtree = spatial.cKDTree(pos_gas)
+        dist, inds = kdtree.query(pos_bh, k=kneighbor, eps=0, distance_upper_bound=drmax, p=p_norm)
         if kneighbor==1:
             dist = np.array([dist])
             inds = np.array([inds])
@@ -194,14 +210,15 @@ class snapshot:
     
 def get_num_snaps(path, snap='snapshot_*.hdf5'):
     fns = glob.glob1(path, snap)
-    imax = -1
+    imax = 0
     tmax = 0.
-    for fn in fns:
-        t = os.path.getmtime(os.path.join(path, fn))
+    for i in range(1, len(fns)):
+        t = os.path.getmtime(os.path.join(path, 'snapshot_%03d.hdf5'%i))
         if t>tmax:
             imax += 1
             tmax = t
-            #print(fn)
+        else:
+            break
             
     return imax
         
@@ -251,3 +268,57 @@ class blackhole_details:
         mask = self.df[mask_key] == bhpid
         res = self.df[mask][column]
         return res.values
+
+    
+    
+    
+    
+class simulation:
+    """
+    A series of snapshots in a single simulation.
+    """
+    def __init__(self, folder):
+        self.folder = folder
+        self.last = get_num_snaps(folder)
+        
+    def find_interesting_BHs(self, num=5, sort_by_ratio=True):
+        sp0 = snapshot(self.folder+'snapshot_%03d.hdf5'%0)
+        sp1 = snapshot(self.folder+'snapshot_%03d.hdf5'%(self.last))
+        if sort_by_ratio:
+            dm = sp1.bh_sorted('Masses')/sp0.bh_sorted('Masses')
+        else:
+            dm = sp1.bh_sorted('Masses')-sp0.bh_sorted('Masses')
+        return (-dm).argsort()[:num]+1
+    
+    def find_fastest_growth_snapshot(self, num=5, sort_by_ratio=False):
+        ms = []
+        for i in range(0, self.last+1):
+            sp = snapshot(self.folder+'snapshot_%03d.hdf5'%i)
+            ms.append(np.sum(sp.bh('Masses')))
+        ms = np.array(ms)
+        dm = []
+        for i in range(self.last):
+            if sort_by_ratio:
+                dm.append(ms[i+1]/ms[i])
+            else:
+                dm.append(ms[i+1]-ms[i])
+        dm = np.array(dm)
+        return (-dm).argsort()[:num]+1
+    
+    def get_bh_history(self, bhid, attr):
+        age = []
+        history = []
+        for i in range(self.last+1):
+            sp = snapshot(self.folder+'snapshot_%03d.hdf5'%i)
+            age.append(sp.time)
+            history.append(sp.single_bh(bhid, attr))
+        return np.array(age), np.array(history)
+    
+    def get_sf_history(self, attr='Masses'):
+        age = []
+        history = []
+        for i in range(self.last+1):
+            sp = snapshot(self.folder+'snapshot_%03d.hdf5'%i)
+            age.append(sp.time)
+            history.append(np.sum(sp.star(attr)))
+        return np.array(age), np.array(history)
