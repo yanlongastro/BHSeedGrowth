@@ -45,6 +45,7 @@ MRs = [
 [1e10, 500, 64],
 
 [1e8, 50, 256],
+[3e7, 50, 128],
 ]
 
 timeout = 2400
@@ -52,6 +53,7 @@ timeout = 2400
 while 1:
     finished = True
     print(time.ctime(), '\n')
+    MRs = np.loadtxt('auto_resubmit_params.txt')
     for MR in MRs:
         M = MR[0]
         R = MR[1]
