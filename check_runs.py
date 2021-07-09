@@ -3,7 +3,7 @@ import time
 import subprocess
 import os
 
-folders = glob.glob1('./', '*_42')
+folders = glob.glob1('./', '*_'+'[0-9]'*2)
 folders = sorted(folders)
 for f in folders:
     #print(f)
@@ -16,7 +16,7 @@ for f in folders:
     ns = len(snaps)-1
     #print('%4d'%(ns), end='  ')
     if ns <=0:
-        print('\n')
+        print('')
         continue
     t_final = 0.
     i_final = 0

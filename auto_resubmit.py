@@ -58,7 +58,8 @@ while 1:
         M = MR[0]
         R = MR[1]
         Res = MR[2]
-        folder = ga.set_folder_name(M, R, Res)
+        turb_seed = MR[3]
+        folder = ga.set_folder_name(M, R, Res, turb_seed=turb_seed)
         t_gizmo = os.path.getctime(folder+'gizmo.out')
 
         slurms = glob.glob1(folder, 'slurm*')

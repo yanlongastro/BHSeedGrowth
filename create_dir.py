@@ -7,6 +7,8 @@ import gizmo_analysis as ga
 import re
 import numpy as np
 
+skip = 1
+
 
 def replace_lines(lines, key, value, comment='\t %for BH Seed Growth Run\t'):
     key_ = key+'\\b'
@@ -44,7 +46,7 @@ for ic in ics:
     with open('submit.sh', 'r') as f:
         lines = f.readlines()
     
-    job_name = ga.set_job_name(ic)
+    job_name = ga.set_job_name(ic, skip=skip)
     lines = replace_lines(lines, r'#SBATCH -J', job_name, comment='')
 
     with open(os.path.join(path, ic[:-5], 'submit.sh'), 'w+') as f:
@@ -61,7 +63,7 @@ for ic in ics:
     
     
     # params.txt file
-    par = ga.par_path(ic, skip=0)
+    par = ga.par_path(ic, skip=skip)
     M = par[0]/1e10
     R = par[1]/1e3
     Res = int(par[5])

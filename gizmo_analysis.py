@@ -135,10 +135,10 @@ def set_job_name(ic, skip=0):
     job_name += '%d'%(np.log(Res)/np.log(2))
     return job_name
  
-def set_folder_name(M, R, Res, pre='BH_'):
+def set_folder_name(M, R, Res, pre='BH_', turb_seed=42):
     power = int(np.log10(M))
     coeff = int(M/10**power)
-    folder = '%sM%de%d_R%d_S0_T1_B0.01_Res%d_n2_sol0.5_42/'%(pre, coeff, power, R, Res)
+    folder = '%sM%de%d_R%d_S0_T1_B0.01_Res%d_n2_sol0.5_%d/'%(pre, coeff, power, R, Res, turb_seed)
     return folder
 
 class snapshot:
@@ -148,6 +148,7 @@ class snapshot:
         self.star_number = self.f['Header'].attrs['NumPart_ThisFile'][4]
         self.bh_number = self.f['Header'].attrs['NumPart_ThisFile'][5]
         self.time = self.f['Header'].attrs['Time']
+        self.bh_sink_radius = self.f['Header'].attrs['Fixed_ForceSoftening_Keplerian_Kernel_Extent'][5]/2.8
         
         if showinfo == True:
             show_info(self.f)
@@ -186,8 +187,11 @@ class snapshot:
         bhpid = np.where(self.f['PartType5']['ParticleIDs'][()]==bhpid)[0][0]
         return self.f['PartType5'][attr][()][bhpid]
             
-    def find_gas_near_bh(self, bhid, kneighbor=96, drmax=10086, p_norm=2):
-        pos_bh = self.single_bh(bhid, 'Coordinates')
+    def find_gas_near_bh(self, bhid=1, kneighbor=96, drmax=10086, p_norm=2, center=None):
+        if center is None:
+            pos_bh = self.single_bh(bhid, 'Coordinates')
+        else:
+            pos_bh = center
         pos_gas = self.gas('Coordinates')
         kdtree = spatial.cKDTree(pos_gas)
         dist, inds = kdtree.query(pos_bh, k=kneighbor, eps=0, distance_upper_bound=drmax, p=p_norm)
@@ -281,6 +285,9 @@ class simulation:
         self.folder = folder
         self.last = get_num_snaps(folder)
         
+    def snapshot(self, i):
+        return snapshot(self.folder+'snapshot_%03d.hdf5'%i)
+        
     def find_interesting_BHs(self, num=5, sort_by_ratio=True):
         sp0 = snapshot(self.folder+'snapshot_%03d.hdf5'%0)
         sp1 = snapshot(self.folder+'snapshot_%03d.hdf5'%(self.last))
@@ -305,13 +312,40 @@ class simulation:
         dm = np.array(dm)
         return (-dm).argsort()[:num]+1
     
-    def get_bh_history(self, bhid, attr):
+    def find_fastest_growth_bh(self, spid, bhs):
+        sp0 = snapshot(self.folder+'snapshot_%03d.hdf5'%(spid-1))
+        sp = snapshot(self.folder+'snapshot_%03d.hdf5'%spid)
+        dbh = []
+        for bh in bhs:
+            dbh.append(sp.single_bh(bh, 'Masses') - sp0.single_bh(bh, 'Masses'))
+        return bhs[np.argmax(dbh)]
+    
+    def get_bh_history(self, bhid=None, attr='Masses', method=''):
         age = []
         history = []
         for i in range(self.last+1):
             sp = snapshot(self.folder+'snapshot_%03d.hdf5'%i)
             age.append(sp.time)
-            history.append(sp.single_bh(bhid, attr))
+            if bhid is not None:
+                temp = sp.single_bh(bhid, attr)
+            else:
+                temp = sp.bh(attr)
+            
+            if 'norm' in method:
+                temp = np.linalg.norm(temp, axis=1)
+            if 'log' in method:
+                temp = np.log10(temp)
+            
+            if 'sum' in method:
+                temp = np.sum(temp)
+            if 'inverse_sum' in method:
+                temp = np.sum(1/temp)
+            if 'average' in method:
+                temp = np.mean(temp)
+            if 'stdev' in method:
+                temp = np.std(temp)    
+            
+            history.append(temp)
         return np.array(age), np.array(history)
     
     def get_sf_history(self, attr='Masses'):
@@ -321,4 +355,36 @@ class simulation:
             sp = snapshot(self.folder+'snapshot_%03d.hdf5'%i)
             age.append(sp.time)
             history.append(np.sum(sp.star(attr)))
+        return np.array(age), np.array(history)
+    
+    def get_gas_history(self, attr='Masses', method='sum', crit_density=None):
+        age = []
+        history = []
+        for i in range(self.last+1):
+            sp = snapshot(self.folder+'snapshot_%03d.hdf5'%i)
+            age.append(sp.time)
+            if 'Volume' in attr:
+                temp = sp.gas('Masses')/sp.gas('Density')
+            elif 'SoundSpeed' in attr:
+                temp = np.sqrt(10./9.*sp.gas('InternalEnergy'))
+            else:
+                temp = sp.gas(attr)
+                
+            if crit_density is not None:
+                temp = temp[sp.gas('Density')>crit_density]
+                
+            if 'norm' in method:
+                temp = np.linalg.norm(temp, axis=1)
+            if 'log' in method:
+                temp = np.log10(temp)
+            
+            if 'sum' in method:
+                temp = np.sum(temp)
+            if 'inverse_sum' in method:
+                temp = np.sum(1/temp)
+            if 'average' in method:
+                temp = np.mean(temp)
+            if 'stdev' in method:
+                temp = np.std(temp)
+            history.append(temp)
         return np.array(age), np.array(history)
